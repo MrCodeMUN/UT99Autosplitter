@@ -1,10 +1,10 @@
 # UT99Autosplitter
 
-This is a simple LiveSplit ASL script for Unreal Tournament 99 speedrunning. So far, it has only be tested with version 469e - Release of the game.
+This is a simple LiveSplit ASL script for Unreal Tournament 99 speedrunning. So far, it has only been tested with version 469e - Release of the game.
 
 ## Installation
 
-Simply download the "ut99-autosplitter.asl" file. In your LiveSplit layout editor, add the "Scriptable Auto splitter" component and link the script to it. Uncheck the "Reset" box if you're not attempting a single level speedrun.
+Simply download the "ut99-autosplitter.asl" file. In your LiveSplit layout editor, add the "Scriptable Auto splitter" component and link the script to it.
 
 ## Settings
 
@@ -12,15 +12,18 @@ You can customize whenever you want to split during the run. By default, the tim
 If you prefer to only split at the end of a gamemode ladder (just before triggering the trophy room cinematic), you can use the "Gamemode ladder splits" option in the settings.
 Simply check the box according to the ladder version you are attempting (either standard or GOTY ladder).
 
+If the "Start" checkbox is checked, you can choose the level you wish to auto-start timer on. Simply check the "Auto-start on ..." checkbox corresponding to your level. Same thing applies to auto-reset.
+By default, the timer will start and reset at the start of the "ITV Oblivion" level.
+
+Be careful ! If no checkboxes are checked for specific levels, but you still have the "Start" or "Reset" option checked, the timer will start/reset automatically at the start of ANY level.
+
 ## Features
 
 The script implements the following features:
 
-- auto-start after spawning in any map
+- auto-start right after spawning in any or a specific customizable level
 - auto-split after a match has ended, either at the end of each level or at the end of a gamemode ladder (customizable in settings)
-- auto-reset while on the "Waiting for ready players" screen
-
-I would advise only using the auto-reset feature if you intend to speedrun a single level.
+- auto-reset while on the "Waiting for ready players" screen in any or a specific customizable level
 
 ## Downsides
 
@@ -33,6 +36,5 @@ At the moment, this script isn't able to:
 
 In the future, I'd like to implement the following features:
 
-- better autoreset
 - check for victory
 - remove loading times / compute in-game time on the fly
