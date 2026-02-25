@@ -1,4 +1,4 @@
-// UT99 Autosplitter v0.2
+// UT99 Autosplitter v0.3
 // Made by CodeM aka MrCodeMUN
 // With inspiration from Quake III Arena and Horizon Forbidden West ASL
 
@@ -7,9 +7,9 @@ state("UnrealTournament")
 {
 	byte4 playerPawnState : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x0C, 0x1C;
 	byte playerPawnBehindView : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x20C;
+	string255 levelTitle : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x390, 0x0;
 
 	// Unused for now, may be useful later
-	string255 levelName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x390, 0x0;
 	string255 gameName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x334, 0x0;
 }
 
@@ -39,24 +39,65 @@ startup
 
 		return true;
 	};
-	vars.CompareByteArrays = CompareByteArrays;
+
+	// Defining settings
+	settings.Add("standard_ladder_splits", false, "Gamemode ladder splits (Standard)");
+	settings.Add("goty_ladder_splits", false, "Gamemode ladder splits (GOTY)");
+	settings.SetToolTip("standard_ladder_splits", "Split at the end of a gamemode ladder and not at the end of each level (standard ladder).");
+	settings.SetToolTip("goty_ladder_splits", "Split at the end of a gamemode ladder and not at the end of each level (GOTY ladder).");
 
 	// Defining PlayerPawn states
 	byte[] playerWaitingState = { 2, 12, 7, 216 };
-	byte[] defaultState = { 2, 28, 7, 249 };
+	byte[] playingState = { 2, 28, 7, 249 };
 	byte[] gameEndedState = { 2, 9, 5, 24 };
 
-	vars.playerWaitingState = playerWaitingState;
-	vars.defaultState = defaultState;
-	vars.gameEndedState = gameEndedState;
+	// Defining last levels
+	var lastStandardLevels = new List<String>(new string[] { "The Peak Monastery", "Metal Dream", "November Sub Pen", "Operation Overlord", "HyperBlast" });
+	var lastGOTYLevels = new List<String>(new string[] { "The Peak Monastery", "Metal Dream", "Orbital Station #12", "Operation Overlord", "HyperBlast" });
+
+	Func<byte[], bool> IsPlayerWaiting = (playerPawnState) => {
+		return CompareByteArrays(playerPawnState, playerWaitingState);
+	};
+	vars.IsPlayerWaiting = IsPlayerWaiting;
+
+	Func<byte[], bool> IsPlaying = (playerPawnState) => {
+		return CompareByteArrays(playerPawnState, playingState);
+	};
+	vars.IsPlaying = IsPlaying;
+
+	Func<byte[], bool> HasGameEnded = (playerPawnState) => {
+		return CompareByteArrays(playerPawnState, gameEndedState);
+	};
+	vars.HasGameEnded = HasGameEnded;
+
+	// To ensure we only split at the end of the defense phase while playing "Assault" maps, we check
+	// for the property "bBehindView" of the PlayerPawn. This value is only true at the actual end
+	// of a match, whether it ended in a victory or not. Could be better, but it works for now.
+	Func<byte, bool> IsBehindViewEnabled = (bBehindView) => {
+		return bBehindView == 67;
+	};
+	vars.IsBehindViewEnabled = IsBehindViewEnabled;
+
+	Func<string, bool, bool, bool> CanSplitOnLevel = (levelTitle, standardLadderSplits, gotyLadderSplits) => {
+		if (!standardLadderSplits && !gotyLadderSplits) {
+			return true;
+		}
+
+		if (gotyLadderSplits) {
+			return lastGOTYLevels.Contains(levelTitle);
+		}
+
+		return lastStandardLevels.Contains(levelTitle);
+	};
+	vars.CanSplitOnLevel = CanSplitOnLevel;
 }
 
 start
 {
-	var oldStateIsWaiting = vars.CompareByteArrays(old.playerPawnState, vars.playerWaitingState);
-	var currentStateIsDefault = vars.CompareByteArrays(current.playerPawnState, vars.defaultState);
+	var oldStateIsWaiting = vars.IsPlayerWaiting(old.playerPawnState);
+	var currentStateIsPlaying = vars.IsPlaying(current.playerPawnState);
 
-	if (oldStateIsWaiting && currentStateIsDefault) {
+	if (oldStateIsWaiting && currentStateIsPlaying) {
 		return true;
 	}
 
@@ -65,15 +106,11 @@ start
 
 split
 {
-	// To ensure we only split at the end of the defense phase while playing "Assault" maps, we check
-	// for the property "bBehindView" of the PlayerPawn. This value is only true at the actual end
-	// of a match, whether it ended in a victory or not. Could be better, but it works for now.
-	bool isBehindViewEnabled = current.playerPawnBehindView == 67;
+	var hasGameJustEnded = !vars.HasGameEnded(old.playerPawnState) && vars.HasGameEnded(current.playerPawnState);
+	var isBehindViewEnabled = vars.IsBehindViewEnabled(current.playerPawnBehindView);
+	var canSplitOnLevel = vars.CanSplitOnLevel(current.levelTitle, settings["standard_ladder_splits"], settings["goty_ladder_splits"]);
 
-	var oldStateIsGameEnded = vars.CompareByteArrays(old.playerPawnState, vars.gameEndedState);
-	var currentStateIsGameEnded = vars.CompareByteArrays(current.playerPawnState, vars.gameEndedState);
-
-	if (!oldStateIsGameEnded && currentStateIsGameEnded && isBehindViewEnabled) {
+	if (hasGameJustEnded && isBehindViewEnabled && canSplitOnLevel) {
 		return true;
 	}
 
@@ -82,8 +119,8 @@ split
 
 reset
 {
-	var oldStateIsWaiting = vars.CompareByteArrays(old.playerPawnState, vars.playerWaitingState);
-	var currentStateIsWaiting = vars.CompareByteArrays(current.playerPawnState, vars.playerWaitingState);
+	var oldStateIsWaiting = vars.IsPlayerWaiting(old.playerPawnState);
+	var currentStateIsWaiting = vars.IsPlayerWaiting(current.playerPawnState);
 
 	if (!oldStateIsWaiting && currentStateIsWaiting) {
 		return true;
