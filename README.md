@@ -17,14 +17,14 @@ This script currenlty works for:
 - DM splits per level
 - DOM splits per level
 - CTF splits per level
+- AS splits per level
 - Challenge splits per level
-- Single level (except Assault maps)
+- Single level
 
 ## Downsides
 
 At the moment, this script isn't able to:
 
-- properly split an assault match: it splits both after the attack AND the defense phases
 - track the completed levels in a run: it will split everytime you finish a level, even if you finish the same level twice
 - check for victory: the script will split at the end of every match, even after a defeat
 
@@ -36,8 +36,7 @@ Simply download the "ut99-autosplitter.asl" file. In your LiveSplit layout edito
 
 In the future, I'd like to implement the following features:
 
-- checking for the current gamemode
-- checking for the current map name (should allow to split per gamemode, and not single levels)
+- allow players to split per gamemode instead of splitting per single levels
 - better autoreset
 - check for victory
 - remove loading times / compute in-game time on the fly
