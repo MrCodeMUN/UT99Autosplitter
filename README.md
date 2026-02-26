@@ -29,6 +29,7 @@ The script implements the following features:
 
 At the moment, this script isn't able to:
 
+- auto-start/auto-reset on a specific level and split by ladder gamemodes if the game language isn't set to 'int'
 - track the completed levels in a run: it will split everytime you finish a level, even if you finish the same level twice
 - check for victory: the script will split at the end of every match, even after a defeat
 
@@ -36,5 +37,6 @@ At the moment, this script isn't able to:
 
 In the future, I'd like to implement the following features:
 
+- level titles localization, so it can auto-start/auto-reset on specific levels and split by ladder gamemodes
 - check for victory
 - remove loading times / compute in-game time on the fly
