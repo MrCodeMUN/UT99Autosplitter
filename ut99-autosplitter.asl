@@ -1,4 +1,4 @@
-// UT99 Autosplitter v0.4
+// UT99 Autosplitter v0.5
 // Made by CodeM aka MrCodeMUN
 // With inspiration from Quake III Arena and Horizon Forbidden West ASL
 
@@ -15,6 +15,20 @@ state("UnrealTournament")
 
 startup
 {
+    Func<ProcessModuleWow64Safe, string> CalcModuleHash = (module) => {
+        byte[] exeHashBytes = new byte[0];
+        using (var sha = System.Security.Cryptography.SHA256.Create())
+        {
+            using (var s = File.Open(module.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                exeHashBytes = sha.ComputeHash(s);
+            }
+        }
+        var hash = exeHashBytes.Select(x => x.ToString("X2")).Aggregate((a, b) => a + b);
+        return hash;
+    };
+    vars.CalcModuleHash = CalcModuleHash;
+
 	// Casts a byte array as string for debugging purposes
 	Func<byte[], string> ByteArrayToString = (bytes) => {
 		var sb = new StringBuilder("new byte[] { ");
@@ -127,6 +141,23 @@ startup
 		return autoResetSettingName[levelTitle];
 	};
 	vars.GetAutoResetSettingFromLevelTitle = GetAutoResetSettingFromLevelTitle;
+}
+
+init
+{
+	var module = modules.Single(x => String.Equals(x.ModuleName, "UnrealTournament.exe", StringComparison.OrdinalIgnoreCase));
+	var hash = vars.CalcModuleHash(module);
+
+	if (hash != "03E2900BDC7848AD6B86D3171F19E25A8E395FAAFBD9EE4FD9F5C30F6A2D4DBE") {
+		if (MessageBox.Show(
+			"It seems you are not running the version v469e - Release of Unreal Tournament (1999). The Autosplitter may not work properly.\n\nPlease update your game with the latest community patch, available on the OldUnreal GitHub's page.\n\nWould you like me to open the website for you?",
+			"UT99 Autosplitter",
+			MessageBoxButtons.YesNo,
+			MessageBoxIcon.Warning
+		) == DialogResult.Yes) {
+			System.Diagnostics.Process.Start("https://github.com/OldUnreal/UnrealTournamentPatches/releases");
+		}
+	}
 }
 
 start
