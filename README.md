@@ -1,6 +1,6 @@
 # UT99Autosplitter
 
-This is a simple LiveSplit ASL script for Unreal Tournament 99 speedrunning. So far, it has only been tested with version 469e - Release of the game.
+This is a simple LiveSplit ASL script for Unreal Tournament 99 speedrunning. So far, it only works with version 469e - Release of the game.
 
 ## Installation
 
