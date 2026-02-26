@@ -1,4 +1,4 @@
-// UT99 Autosplitter v0.5
+// UT99 Autosplitter v0.6
 // Made by CodeM aka MrCodeMUN
 // With inspiration from Quake III Arena and Horizon Forbidden West ASL
 
@@ -6,11 +6,8 @@
 state("UnrealTournament")
 {
 	byte4 playerPawnState : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x0C, 0x1C;
-	byte playerPawnBehindView : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x20C;
-	string255 levelTitle : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x390, 0x0;
-
-	// Unused for now, may be useful later
-	string255 gameName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x334, 0x0;
+	byte playerPawnViewState : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x20C;
+	string255 mapName : 0x00037E70, 0xD0, 0x0;
 }
 
 startup
@@ -72,20 +69,20 @@ startup
 
 	var autoStartSettingName = new Dictionary<string, string>()
 	{
-		{ "ITV Oblivion", "auto_start_oblivion" },
-		{ "Condemned", "auto_start_condemned" },
-		{ "Niven Experimental Lab", "auto_start_niven" },
-		{ "Frigate", "auto_start_frigate" },
-		{ "Phobos Moon", "auto_start_phobos" }
+		{ "DM-Oblivion.unr", "auto_start_oblivion" },
+		{ "DOM-Condemned.unr", "auto_start_condemned" },
+		{ "CTF-Niven.unr", "auto_start_niven" },
+		{ "AS-Frigate.unr", "auto_start_frigate" },
+		{ "DM-Phobos.unr", "auto_start_phobos" }
 	};
 
 	var autoResetSettingName = new Dictionary<string, string>()
 	{
-		{ "ITV Oblivion", "auto_reset_oblivion" },
-		{ "Condemned", "auto_reset_condemned" },
-		{ "Niven Experimental Lab", "auto_reset_niven" },
-		{ "Frigate", "auto_reset_frigate" },
-		{ "Phobos Moon", "auto_reset_phobos" }
+		{ "DM-Oblivion.unr", "auto_reset_oblivion" },
+		{ "DOM-Condemned.unr", "auto_reset_condemned" },
+		{ "CTF-Niven.unr", "auto_reset_niven" },
+		{ "AS-Frigate.unr", "auto_reset_frigate" },
+		{ "DM-Phobos.unr", "auto_reset_phobos" }
 	};
 
 	// Defining PlayerPawn states
@@ -104,43 +101,45 @@ startup
 	// To ensure we only split at the end of the defense phase while playing "Assault" maps, we check
 	// for the property "bBehindView" of the PlayerPawn. This value is only true at the actual end
 	// of a match, whether it ended in a victory or not. Could be better, but it works for now.
-	Func<byte, bool> IsBehindViewEnabled = (bBehindView) => {
-		return bBehindView == 67;
+	Func<byte, bool> IsBehindViewEnabled = (playerPawnViewState) => {
+		return playerPawnViewState % 2 == 1;
 	};
 	vars.IsBehindViewEnabled = IsBehindViewEnabled;
 
 	// Defining first and last levels
-	var firstLevels = new List<String>(new string[] { "ITV Oblivion", "Condemned", "Niven Experimental Lab", "Frigate", "Phobos Moon" });
-	var lastStandardLevels = new List<String>(new string[] { "The Peak Monastery", "Metal Dream", "November Sub Pen", "Operation Overlord", "HyperBlast" });
-	var lastGOTYLevels = new List<String>(new string[] { "The Peak Monastery", "Metal Dream", "Orbital Station #12", "Operation Overlord", "HyperBlast" });
+	var firstLevels = new List<String>(new string[] { "DM-Oblivion.unr", "DOM-Condemned.unr", "CTF-Niven.unr", "AS-Frigate.unr", "DM-Phobos.unr" });
+	var lastStandardLevels = new List<String>(new string[] { "DM-Peak.unr", "DOM-MetalDream.unr", "CTF-November.unr", "AS-Overlord.unr", "DM-HyperBlast.unr" });
+	var lastGOTYLevels = new List<String>(new string[] { "DM-Peak.unr", "DOM-MetalDream.unr", "CTF-Orbital.unr", "AS-Overlord.unr", "DM-HyperBlast.unr" });
 
-	Func<string, bool> IsFirstLevel = (levelTitle) => {
-		return firstLevels.Contains(levelTitle);
+	Func<string, bool> IsFirstLevel = (mapName) => {
+		return firstLevels.Contains(mapName);
 	};
 	vars.IsFirstLevel = IsFirstLevel;
 
-	Func<string, bool, bool, bool> CanSplitOnLevel = (levelTitle, standardLadderSplits, gotyLadderSplits) => {
+	Func<string, bool, bool, bool> CanSplitOnLevel = (mapName, standardLadderSplits, gotyLadderSplits) => {
 		if (!standardLadderSplits && !gotyLadderSplits) {
 			return true;
 		}
 
 		if (gotyLadderSplits) {
-			return lastGOTYLevels.Contains(levelTitle);
+			return lastGOTYLevels.Contains(mapName);
 		}
 
-		return lastStandardLevels.Contains(levelTitle);
+		return lastStandardLevels.Contains(mapName);
 	};
 	vars.CanSplitOnLevel = CanSplitOnLevel;
 
-	Func<string, string> GetAutoStartSettingFromLevelTitle = (levelTitle) => {
-		return autoStartSettingName[levelTitle];
+	Func<string, string> GetAutoStartSettingFromMapName = (mapName) => {
+		return autoStartSettingName[mapName];
 	};
-	vars.GetAutoStartSettingFromLevelTitle = GetAutoStartSettingFromLevelTitle;
+	vars.GetAutoStartSettingFromMapName = GetAutoStartSettingFromMapName;
 
-	Func<string, string> GetAutoResetSettingFromLevelTitle = (levelTitle) => {
-		return autoResetSettingName[levelTitle];
+	Func<string, string> GetAutoResetSettingFromMapName = (mapName) => {
+		return autoResetSettingName[mapName];
 	};
-	vars.GetAutoResetSettingFromLevelTitle = GetAutoResetSettingFromLevelTitle;
+	vars.GetAutoResetSettingFromMapName = GetAutoResetSettingFromMapName;
+
+	vars.completedLevels = new List<String>();
 }
 
 init
@@ -164,8 +163,8 @@ start
 {
 	bool canAutoStart = !settings["auto_start_oblivion"] && !settings["auto_start_condemned"] && !settings["auto_start_niven"] && !settings["auto_start_frigate"] && !settings["auto_start_phobos"];
 
-	if (!canAutoStart && vars.IsFirstLevel(current.levelTitle)) {
-		var settingName = vars.GetAutoStartSettingFromLevelTitle(current.levelTitle);
+	if (!canAutoStart && vars.IsFirstLevel(current.mapName)) {
+		var settingName = vars.GetAutoStartSettingFromMapName(current.mapName);
 		canAutoStart = settings[settingName];
 	}
 
@@ -181,11 +180,13 @@ start
 
 split
 {
-	var hasGameJustEnded = !vars.IsInState(old.playerPawnState, vars.gameEndedState) && vars.IsInState(current.playerPawnState, vars.gameEndedState);
-	var isBehindViewEnabled = vars.IsBehindViewEnabled(current.playerPawnBehindView);
-	var canSplitOnLevel = vars.CanSplitOnLevel(current.levelTitle, settings["standard_ladder_splits"], settings["goty_ladder_splits"]);
+	var hasGameEnded = vars.IsInState(current.playerPawnState, vars.gameEndedState);
+	var isBehindViewEnabled = vars.IsBehindViewEnabled(current.playerPawnViewState);
+	var canSplitOnLevel = vars.CanSplitOnLevel(current.mapName, settings["standard_ladder_splits"], settings["goty_ladder_splits"]);
+	var levelAlreadyCompleted = vars.completedLevels.Contains(current.mapName);
 
-	if (hasGameJustEnded && isBehindViewEnabled && canSplitOnLevel) {
+	if (hasGameEnded && isBehindViewEnabled && canSplitOnLevel && !levelAlreadyCompleted) {
+		vars.completedLevels.Add(current.mapName);
 		return true;
 	}
 
@@ -194,19 +195,27 @@ split
 
 reset
 {
+	if (old.mapName == current.mapName) {
+		return false;
+	}
+
 	bool canAutoReset = !settings["auto_reset_oblivion"] && !settings["auto_reset_condemned"] && !settings["auto_reset_niven"] && !settings["auto_reset_frigate"] && !settings["auto_reset_phobos"];
 
-	if (!canAutoReset && vars.IsFirstLevel(current.levelTitle)) {
-		var settingName = vars.GetAutoResetSettingFromLevelTitle(current.levelTitle);
+	if (!canAutoReset && vars.IsFirstLevel(current.mapName)) {
+		var settingName = vars.GetAutoResetSettingFromMapName(current.mapName);
 		canAutoReset = settings[settingName];
 	}
 
-	var oldStateIsWaiting = vars.IsInState(old.playerPawnState, vars.playerWaitingState);
-	var currentStateIsWaiting = vars.IsInState(current.playerPawnState, vars.playerWaitingState);
+	var isPlayerWaiting = vars.IsInState(current.playerPawnState, vars.playerWaitingState);
 
-	if (!oldStateIsWaiting && currentStateIsWaiting && canAutoReset) {
+	if (isPlayerWaiting && canAutoReset) {
 		return true;
 	}
 
 	return false;
+}
+
+onReset
+{
+	vars.completedLevels.Clear();
 }
