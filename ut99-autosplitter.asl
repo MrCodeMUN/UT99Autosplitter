@@ -18,9 +18,14 @@ state("UnrealTournament", "v469e - Release")
 	string255 mapName : 0x00037E70, 0xD0, 0x0;
 	float gameSpeed : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x224;
 	float groundSpeed : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x26C;
-	float airControl : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x284;
 	int remainingTime : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1370;
 	int elapsedTime : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1374;
+
+	// This is the player's air control value. Under the AntiGrav boots effect, this value will go up to 100%. This is why we also check for the player's jump height value.
+	// Alternatively, we can also check for the air control value of the GameInfo object, which doesn't change during the match, but breaks in menus.
+	// It can be found here: 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1354
+	float airControl : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x284;
+	float jumpZ : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x27C;
 }
 
 startup
@@ -181,11 +186,13 @@ startup
 	};
 	vars.GetAutoSplitSettingFromMapName = GetAutoSplitSettingFromMapName;
 
-	Func<float, float, float, bool> PlayerIsFollowingRules = (gameSpeed, airControl, groundSpeed) => {
-		if (gameSpeed != 1f || airControl != 0.35f || groundSpeed != 400f) {
+	Func<float, float, float, float, bool> PlayerIsFollowingRules = (gameSpeed, airControl, jumpZ, groundSpeed) => {
+		bool isAirControlOkay = (airControl == 0.35f && jumpZ != 975f) || (airControl == 1f && jumpZ == 975f);
+
+		if (gameSpeed != 1f || !isAirControlOkay || groundSpeed != 400f) {
 			// Player is not following rules and has tempered his game settings
 			if (gameSpeed != 1f) vars.gameStyleGlitchStatus = "Game Speed isn't set to 100%!";
-			if (airControl != 0.35f) vars.gameStyleGlitchStatus = "Air Control isn't set to 35%!";
+			if (!isAirControlOkay) vars.gameStyleGlitchStatus = "Air Control isn't set to 35%!";
 			if (groundSpeed != 400f) vars.gameStyleGlitchStatus = "Game Style isn't set to 'Hardcore'!";
 			return false;
 		}
@@ -227,7 +234,7 @@ init
 
 update
 {
-	if (settings["disable_if_game_style_glitch"] && !vars.PlayerIsFollowingRules(current.gameSpeed, current.airControl, current.groundSpeed)) {
+	if (settings["disable_if_game_style_glitch"] && !vars.PlayerIsFollowingRules(current.gameSpeed, current.airControl, current.jumpZ, current.groundSpeed)) {
 		// Player is not following rules and has tempered his game settings
 		return false;
 	}
