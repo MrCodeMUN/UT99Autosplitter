@@ -1,4 +1,4 @@
-// UT99 Autosplitter v0.6
+// UT99 Autosplitter v0.7
 // Made by CodeM aka MrCodeMUN
 // With inspiration from Quake III Arena and Horizon Forbidden West ASL
 
@@ -9,19 +9,24 @@ state("UnrealTournament", "v469e - Release")
 	string255 levelName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x390, 0x0;
 	string255 levelAuthor : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x39C, 0x0;
 	string255 levelIdealPlayerCount : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x3A8, 0x0;
+	float fovAngle : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x304;
 	int playerHealth : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x31C;
 
 	// Current state variables used in the script
 	byte4 playerPawnState : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x0C, 0x1C;
 	byte playerPawnViewState : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x20C;
 	string255 mapName : 0x00037E70, 0xD0, 0x0;
-	int assaultLevelTimer : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1370;
-	int levelTimer : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1374;
+	float gameSpeed : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x224;
+	float groundSpeed : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x26C;
+	float airControl : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x284;
+	int remainingTime : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1370;
+	int elapsedTime : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1374;
 }
 
 startup
 {
 	vars.numberOfDeaths = 0;
+	vars.gameStyleGlitchStatus = "";
 
 	Func<ProcessModuleWow64Safe, string> CalcModuleHash = (module) => {
 		byte[] exeHashBytes = new byte[0];
@@ -86,10 +91,12 @@ startup
 		settings.Add("auto_split_overlord", false, "Operation Overlord", "auto_split_level");
 		settings.Add("auto_split_hyperblast", false, "HyperBlast", "auto_split_level");
 	settings.Add("no_death_challenge", false, "No death challenge");
+	settings.Add("disable_if_game_style_glitch", false, "[EXPERIMENTAL] Disable autosplitter if the Game Style glitched is used");
 	settings.SetToolTip("auto_start_level", "If unchecked, will auto-start at the start of every level.");
 	settings.SetToolTip("auto_reset_level", "WARNING! If unchecked, will auto-reset at the start of every level.");
 	settings.SetToolTip("auto_split_level", "If unchecked, will auto-split at the end of every level.");
 	settings.SetToolTip("no_death_challenge", "If 'Reset' is checked, will auto-reset the timer on death.");
+	settings.SetToolTip("disable_if_game_style_glitch", "Disables autosplitter if game speed is not set to 100%, if air control is not set to 35% and if game style is not set to 'Hardcore'.");
 
 	var autoStartSettingName = new Dictionary<string, string>()
 	{
@@ -124,10 +131,12 @@ startup
 
 	// Defining PlayerPawn states
 	byte[] playerWaitingState = { 2, 12, 7, 216 };
-	byte[] playingState = { 2, 28, 7, 249 };
+	byte[] playerWalkingState = { 2, 28, 7, 249 };
+	byte[] dyingState = { 2, 9, 7, 24 };
 	byte[] gameEndedState = { 2, 9, 5, 24 };
 	vars.playerWaitingState = playerWaitingState;
-	vars.playingState = playingState;
+	vars.playerWalkingState = playerWalkingState;
+	vars.dyingState = dyingState;
 	vars.gameEndedState = gameEndedState;
 
 	Func<byte[], byte[], bool> IsInState = (playerPawnState, stateToCompare) => {
@@ -172,6 +181,20 @@ startup
 	};
 	vars.GetAutoSplitSettingFromMapName = GetAutoSplitSettingFromMapName;
 
+	Func<float, float, float, bool> PlayerIsFollowingRules = (gameSpeed, airControl, groundSpeed) => {
+		if (gameSpeed != 1f || airControl != 0.35f || groundSpeed != 400f) {
+			// Player is not following rules and has tempered his game settings
+			if (gameSpeed != 1f) vars.gameStyleGlitchStatus = "Game Speed isn't set to 100%!";
+			if (airControl != 0.35f) vars.gameStyleGlitchStatus = "Air Control isn't set to 35%!";
+			if (groundSpeed != 400f) vars.gameStyleGlitchStatus = "Game Style isn't set to 'Hardcore'!";
+			return false;
+		}
+
+		vars.gameStyleGlitchStatus = "";
+		return true;
+	};
+	vars.PlayerIsFollowingRules = PlayerIsFollowingRules;
+
 	vars.completedLevels = new List<String>();
 	vars.elapsedTime = TimeSpan.Zero;
 
@@ -204,8 +227,13 @@ init
 
 update
 {
-	var oldStateIsDying = vars.IsInState(old.playerPawnState, vars.playerDyingState);
-	var currentStateIsDying = vars.IsInState(current.playerPawnState, vars.playerDyingState);
+	if (settings["disable_if_game_style_glitch"] && !vars.PlayerIsFollowingRules(current.gameSpeed, current.airControl, current.groundSpeed)) {
+		// Player is not following rules and has tempered his game settings
+		return false;
+	}
+
+ 	var oldStateIsDying = vars.IsInState(old.playerPawnState, vars.dyingState);
+	var currentStateIsDying = vars.IsInState(current.playerPawnState, vars.dyingState);
 
 	if (!oldStateIsDying && currentStateIsDying) {
 		vars.numberOfDeaths += 1;
@@ -222,7 +250,7 @@ start
 	}
 
 	var oldStateIsWaiting = vars.IsInState(old.playerPawnState, vars.playerWaitingState);
-	var currentStateIsPlaying = vars.IsInState(current.playerPawnState, vars.playingState);
+	var currentStateIsPlaying = vars.IsInState(current.playerPawnState, vars.playerWalkingState);
 
 	if (canAutoStart && oldStateIsWaiting && currentStateIsPlaying) {
 		vars.ResetVarsValues();
@@ -287,7 +315,7 @@ onReset
 
 gameTime
 {
-	if (current.levelTimer - old.levelTimer == 1 || old.assaultLevelTimer - current.assaultLevelTimer == 1) {
+	if (current.elapsedTime - old.elapsedTime == 1 || old.remainingTime - current.remainingTime == 1) {
 		return vars.elapsedTime += TimeSpan.FromSeconds(1);
 	}
 

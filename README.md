@@ -30,6 +30,7 @@ The script implements the following features:
 - auto-split after a match has ended, either at the end of each level or at the end of a gamemode ladder (customizable in settings)
 - auto-reset while on the "Waiting for ready players" screen in any or a specific customizable level
 - in-game time
+- disable the autosplitter if the Game Style glitched is used
 
 > [!NOTE]
 > The auto-reset feature won't properly work in practice sessions.
@@ -39,7 +40,6 @@ The script implements the following features:
 Right now, the following features aren't implemented, and will hopefully be part of future releases of the script:
 
 - check for victory before splitting
-- stop updating the timer if game speed is not 100%, if game style is not Hardcore and if air strafing is not 35%.
 
 ## Have any issues?
 
