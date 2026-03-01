@@ -5,21 +5,22 @@
 state("UnrealTournament", "v469e - Release")
 {
 	// Current state variables that can be used with ASL Var Viewer
-	string255 gamemodeName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x334, 0x0;
-	string255 levelName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x390, 0x0;
-	string255 levelAuthor : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x39C, 0x0;
-	string255 levelIdealPlayerCount : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x3A8, 0x0;
-	float fovAngle : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x304;
-	int playerHealth : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x31C;
+	string255 localizedGamemodeName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x334, 0x0;
+	string255 localizedLevelName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x390, 0x0;
 
 	// Current state variables used in the script
 	byte4 playerPawnState : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x0C, 0x1C;
 	byte playerPawnViewState : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x20C;
 	string255 mapName : 0x00037E70, 0xD0, 0x0;
 	float gameSpeed : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x224;
-	float groundSpeed : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x26C;
+	float playerGroundSpeed : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x26C;
 	int remainingTime : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1370;
 	int elapsedTime : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1374;
+	float playerScore : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x44C, 0x23C;
+	float playerTeamScore : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x3A0, 0x388, 0x21C;
+	int gameItemGoals : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x3A0, 0x398;
+	int gameKillGoals : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x3A0, 0x39C;
+	int gameSecretGoals : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x3A0, 0x3A0;
 
 	// This is the player's air control value. Under the AntiGrav boots effect, this value will go up to 100%. This is why we also check for the player's jump height value.
 	// Alternatively, we can also check for the air control value of the GameInfo object, which doesn't change during the match, but breaks in menus.
@@ -186,14 +187,14 @@ startup
 	};
 	vars.GetAutoSplitSettingFromMapName = GetAutoSplitSettingFromMapName;
 
-	Func<float, float, float, float, bool> PlayerIsFollowingRules = (gameSpeed, airControl, jumpZ, groundSpeed) => {
+	Func<float, float, float, float, bool> PlayerIsFollowingRules = (gameSpeed, airControl, jumpZ, playerGroundSpeed) => {
 		bool isAirControlOkay = (airControl == 0.35f && jumpZ != 975f) || (airControl == 1f && jumpZ == 975f);
 
-		if (gameSpeed != 1f || !isAirControlOkay || groundSpeed != 400f) {
+		if (gameSpeed != 1f || !isAirControlOkay || playerGroundSpeed != 400f) {
 			// Player is not following rules and has tempered his game settings
 			if (gameSpeed != 1f) vars.gameStyleGlitchStatus = "Game Speed isn't set to 100%!";
 			if (!isAirControlOkay) vars.gameStyleGlitchStatus = "Air Control isn't set to 35%!";
-			if (groundSpeed != 400f) vars.gameStyleGlitchStatus = "Game Style isn't set to 'Hardcore'!";
+			if (playerGroundSpeed != 400f) vars.gameStyleGlitchStatus = "Game Style isn't set to 'Hardcore'!";
 			return false;
 		}
 
@@ -211,6 +212,19 @@ startup
 		vars.elapsedTime = TimeSpan.Zero;
 	};
 	vars.ResetVarsValues = ResetVarsValues;
+
+	Func<int, int, float, float, bool> HasPlayerWon = (gameItemGoals, gameKillGoals, playerScore, playerTeamScore) => {
+		if (gameItemGoals > 0) {
+			return (int) playerTeamScore >= gameItemGoals;
+		}
+
+		if (gameKillGoals > 0) {
+			return (int) playerScore >= gameKillGoals;
+		}
+
+		return false;
+	};
+	vars.HasPlayerWon = HasPlayerWon;
 }
 
 init
@@ -234,7 +248,7 @@ init
 
 update
 {
-	if (settings["disable_if_game_style_glitch"] && !vars.PlayerIsFollowingRules(current.gameSpeed, current.airControl, current.jumpZ, current.groundSpeed)) {
+	if (settings["disable_if_game_style_glitch"] && !vars.PlayerIsFollowingRules(current.gameSpeed, current.airControl, current.jumpZ, current.playerGroundSpeed)) {
 		// Player is not following rules and has tempered his game settings
 		return false;
 	}
@@ -269,18 +283,33 @@ start
 
 split
 {
+	bool shouldSplit = false;
 	bool canAutoSplit = !settings["auto_split_level"];
 
 	if (!canAutoSplit && vars.IsThirdOrFinalLevel(current.mapName)) {
 		var settingName = vars.GetAutoSplitSettingFromMapName(current.mapName);
-		canAutoSplit = settings[settingName];
+		if (!settings[settingName]) {
+			return false;
+		}
 	}
 
 	var hasGameEnded = vars.IsInState(current.playerPawnState, vars.gameEndedState);
-	var isBehindViewEnabled = vars.IsBehindViewEnabled(current.playerPawnViewState);
-	var levelAlreadyCompleted = vars.completedLevels.Contains(current.mapName);
 
-	if (hasGameEnded && isBehindViewEnabled && canAutoSplit && !levelAlreadyCompleted) {
+	if (hasGameEnded) {
+		var levelAlreadyCompleted = vars.completedLevels.Contains(current.mapName);
+
+		if (levelAlreadyCompleted) {
+			return false;
+		}
+
+		if (current.gameItemGoals > 0 || current.gameKillGoals > 0) {
+			shouldSplit = vars.HasPlayerWon(current.gameItemGoals, current.gameKillGoals, current.playerScore, current.playerTeamScore);
+		} else if (current.gameSecretGoals == 1) {
+			shouldSplit = vars.IsBehindViewEnabled(current.playerPawnViewState);
+		}
+	}
+
+	if (shouldSplit) {
 		vars.completedLevels.Add(current.mapName);
 		return true;
 	}

@@ -33,13 +33,7 @@ The script implements the following features:
 - disable the autosplitter if the Game Style glitched is used
 
 > [!NOTE]
-> The auto-reset feature won't properly work in practice sessions.
-
-## What is coming
-
-Right now, the following features aren't implemented, and will hopefully be part of future releases of the script:
-
-- check for victory before splitting
+> Some features won't properly work in practice sessions, as the autosplitter is tailored for ladder mode.
 
 ## Have any issues?
 
