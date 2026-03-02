@@ -6,6 +6,29 @@ You can download the latest release version of the game on the [OldUnreal's webs
 > [!NOTE]
 > If you're not running the latest release version of the game, the autosplitter will prompt you to update your game.
 
+- [Installation](#installation)
+- [Features](#features)
+  - [Auto-start](#auto-start)
+  - [Auto-split](#auto-split)
+  - [Auto-split](#auto-reset)
+  - [In-game time](#in-game-time)
+  - [Experimental: game style glitch recognition](#experimental-game-style-glitch-recognition)
+- [Setting up the autosplitter](#setting-up-the-autosplitter)
+  - [No splits](#no-splits)
+  - [Full game splits (Standard ladder)](#full-game-splits-standard-ladder)
+    - [Split by level](#split-by-level)
+    - [Split by gamemode](#split-by-gamemode)
+  - [Full game splits (Standard ladder)](#full-game-splits-standard-ladder)
+    - [Split by level](#split-by-level-1)
+    - [Split by gamemode](#split-by-gamemode-1)
+  - [DM / DOM / CTF / Assault / Challenge](#dm--dom--ctf--assault--challenge)
+  - [Single level](#single-level)
+  - [In-game time](#in-game-time)
+  - [Extra options](#extra-options)
+  - [ASL Var Viewer](#asl-var-viewer)
+- [Have any issues?](#have-any-issues)
+- [Special thanks](#special-thanks)
+
 ## Installation
 
 > [!TIP]
@@ -118,6 +141,24 @@ To display the in-game time, simply add a **Timer** (**Edit Layout... > (+) > Ti
 For extra challenge, you can also check the **No death challenge** option. This will auto-reset the timer if you ever die during your run.
 
 You can also check the **Disable autosplitter if the Game Style glitched is used** option. This will disable the autosplitter if the game speed is not set to 100%, if the air control is not set to 35% and if the game style is not set to 'Hardcore'.
+
+### ASL Var Viewer
+
+Some variables are made available in the script so you can display them in your splits, just as an extra information. To do this, you'll need to install the [ASL Var Viewer](https://github.com/hawkerm/LiveSplit.ASLVarViewer) LiveSplit component.
+
+After that, add the component to your layout. Right click your splits and select **Edit Layout... > (+) > Information > ASL Var Viewer**. Then double click the **ASL Var Viewer** component to open the component's settings. Under the **Value** category, you'll find a **Value Container** field.
+
+Under **Current state**, you will find:
+
+- **localizedLevelName** (the name of the current map, in your game's language)
+- **localizedGamemodeName** (the name of the current gamemode, in your game's language)
+
+Under **Variables**, you will find:
+
+- **numberOfDeaths** (the total number of times you died in this run)
+- **gameStyleGlitchStatus** (a value that can help you debug the reason why the autosplitter is disabled)
+
+You will also have a multitude of other variables, which are being used by script. Play with the settings a bit to see if you find something interesting!
 
 ## Have any issues?
 
