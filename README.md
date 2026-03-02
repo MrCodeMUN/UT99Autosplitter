@@ -13,7 +13,7 @@ You can download the latest release version of the game on the [OldUnreal's webs
 
 Simply download the [ut99-autosplitter.asl file](https://github.com/MrCodeMUN/UT99Autosplitter/blob/main/ut99-autosplitter.asl).
 
-After that, right click your splits and select **Edit layout > (+) > Control > Scriptable Auto splitter**. Then double click the Scriptable Auto splitter component, select **Browse** and choose the previously downloaded file. If no option appear, it means the script initialization has failed. Make sure you have the latest version of LiveSplit installed.
+After that, right click your splits and select **Edit Layout... > (+) > Control > Scriptable Auto splitter**. Then double click the **Scriptable Auto splitter** component, select **Browse** and choose the previously downloaded file. If no option appear, it means the script initialization has failed. Make sure you have the latest version of LiveSplit installed.
 
 ## Features
 
@@ -108,6 +108,10 @@ If you are attempting a **single level** run, I recommend the following settings
 
 - uncheck the **Auto-start at the start of a specific level** and the **Auto-reset at the start of a specific level** options
 - leave the **Auto-split at the end of a specific level** option unchecked
+
+### In-game time
+
+To display the in-game time, simply add a **Timer** (**Edit Layout... > (+) > Timer > Timer**), then double click the newly added **Timer** and change the **Timing Method** to **Game Time**.
 
 ### Extra options
 
