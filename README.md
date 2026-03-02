@@ -44,7 +44,7 @@ If the corresponding setting is enabled, the script is able to deactivate itself
 
 Double clicking the **Scriptable Auto splitter** component in your layout editor will bring the settings window. If no option appear, it means the script initialization has failed. Make sure you have the latest version of LiveSplit installed. By default, the script will:
 
-- auto-start and auto-reset at the beginning of the ITV Oblivion
+- auto-start and auto-reset at the beginning of the ITV Oblivion level
 - auto-split at the end of every level if you are victorious
 
 This works well with the **Full Game** category and the **DM** category, the two most popular categories on speedrun.com. Read below if you want to attempt other categories.
@@ -57,13 +57,13 @@ This works well with the **Full Game** category and the **DM** category, the two
 If you have no splits and just want to start and end the timer according to the category you are running, I recommend the following settings:
 
 - check the **Auto-start at the start of a specific level** and the **Auto-reset at the start of a specific level** and select **the first level of your run** (either ITV Oblivion, Condemned, Niven, Frigate or Phobos). If you are attempting a single level run, leave these options unchecked
-- check the **Auto-split at the end of a specific level** option and select **the last level of your run** (either The Peak Monastery, Metal Dream, Orbital Station #12, Operation Overlord or HyperBlast). If you are attempting a single level run, leave this option unchecked
+- check the **Auto-split at the end of a specific level** option and select **the last level of your run** (either The Peak Monastery, Metal Dream, November Sub Pen, Orbital Station #12, Operation Overlord or HyperBlast). If you are attempting a single level run, leave this option unchecked
 
 ### Full Game splits (Standard ladder)
 
 #### Split by level
 
-If you are attempting a **Full Game (Standard)** run and want to split at the end of each level, you are already set! The is the default script behaviour. But just in case, I recommend the following settings:
+If you are attempting a **Full Game (Standard)** run and want to split at the end of each level, you are already set! This is the default script behaviour. But just in case, I recommend the following settings:
 
 - check the **Auto-start at the start of a specific level** and the **Auto-reset at the start of a specific level** and select **ITV Oblivion**
 - leave the **Auto-split at the end of a specific level** option unchecked
@@ -81,7 +81,7 @@ You can also select **Fractal Reactor**, **Cryptic** and **Eternal Caves** if yo
 
 #### Split by level
 
-If you are attempting a **Full Game (GOTY)** run and want to split at the end of each level, you are already set! The is the default script behaviour. But just in case, I recommend the following settings:
+If you are attempting a **Full Game (GOTY)** run and want to split at the end of each level, you are already set! This is the default script behaviour. But just in case, I recommend the following settings:
 
 - check the **Auto-start at the start of a specific level** and the **Auto-reset at the start of a specific level** and select **ITV Oblivion**
 - leave the **Auto-split at the end of a specific level** option unchecked
