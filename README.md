@@ -10,7 +10,7 @@ You can download the latest release version of the game on the [OldUnreal's webs
 - [Features](#features)
   - [Auto-start](#auto-start)
   - [Auto-split](#auto-split)
-  - [Auto-split](#auto-reset)
+  - [Auto-reset](#auto-reset)
   - [In-game time](#in-game-time)
   - [Experimental: game style glitch recognition](#experimental-game-style-glitch-recognition)
 - [Setting up the autosplitter](#setting-up-the-autosplitter)
