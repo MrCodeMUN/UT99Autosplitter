@@ -12,7 +12,7 @@ You can download the latest release version of the game on the [OldUnreal's webs
   - [Auto-split](#auto-split)
   - [Auto-reset](#auto-reset)
   - [In-game time](#in-game-time)
-  - [Experimental: game style glitch recognition](#experimental-game-style-glitch-recognition)
+  - [Experimental: load removed time (LRT)](#experimental-load-removed-time-lrt)
 - [Setting up the autosplitter](#setting-up-the-autosplitter)
   - [No splits](#no-splits)
   - [Full game splits (Standard ladder)](#full-game-splits-standard-ladder)
@@ -59,9 +59,12 @@ By default, if the 'Reset' checkbox is checked, the autosplitter will auto-reset
 
 The autosplitter is able to compute the total time spent in any level. You will no longer have to manually add up all of the in-game times after the completion of a run!
 
-### Experimental: game style glitch recognition
+### Experimental: load removed time (LRT)
 
-If the corresponding setting is enabled, the script is able to deactivate itself if it thinks the player is not following the rules as mentionned on the [Unreal Tournament (1999)'s speedrun.com page](https://www.speedrun.com/ut99?h=Full_Game_Novice-PCMacLinux&rules=category&x=wdmz8952-wlexp148.81wrdvol). This is an optional setting.
+If the corresponding setting is enabled, the **Game Time** timing method from LiveSplit will return the LRT time, which is basically RTA but with pauses during loading times.
+
+> [!CAUTION]
+> Be aware that the Unreal Tournament (1999)'s speedrun.com leaderboard **will not accept** submissions with LRT instead of RTA for now. RTA is still the main method of timing on the leaderboard.
 
 ## Setting up the autosplitter
 
@@ -140,11 +143,11 @@ To display the in-game time, simply add a **Timer** (**Edit Layout... > (+) > Ti
 
 For extra challenge, you can also check the **No death challenge** option. This will auto-reset the timer if you ever die during your run.
 
-You can also check the **Disable autosplitter if the Game Style glitched is used** option. This will disable the autosplitter if the game speed is not set to 100%, if the air control is not set to 35% and if the game style is not set to 'Hardcore'.
+You can also split on very flag capture by checking the **Split after every flag capture on CTF maps** option.
 
 ### ASL Var Viewer
 
-Some variables are made available in the script so you can display them in your splits, just as an extra information. To do this, you'll need to install the [ASL Var Viewer](https://github.com/hawkerm/LiveSplit.ASLVarViewer) LiveSplit component.
+Some variables are made available in the script so you can display them in your splits, just as extra information. To do this, you'll need to install the [ASL Var Viewer](https://github.com/hawkerm/LiveSplit.ASLVarViewer) LiveSplit component.
 
 After that, add the component to your layout. Right click your splits and select **Edit Layout... > (+) > Information > ASL Var Viewer**. Then double click the **ASL Var Viewer** component to open the component's settings. Under the **Value** category, you'll find a **Value Container** field.
 
@@ -152,11 +155,18 @@ Under **Current state**, you will find:
 
 - **localizedLevelName** (the name of the current map, in your game's language)
 - **localizedGamemodeName** (the name of the current gamemode, in your game's language)
+- **airControl** (player's air control value in percentage (%); will be 1 if under the AntiGrav boots effect; previously used as an anti-cheat experimental feature)
+- **jumpZ** (player's jump height value; default is 325, or 357,5 if in Hardcore mode; will be 975 under the AntiGrav boots effect; previously used as an anti-cheat experimental feature)
 
 Under **Variables**, you will find:
 
-- **numberOfDeaths** (the total number of times you died in this run)
-- **gameStyleGlitchStatus** (a value that can help you debug the reason why the autosplitter is disabled)
+- **numberOfDeaths** (total deaths of the player during the run)
+- **gameStyleGlitchStatus** (simple message explaining the reason if and why the game style glitch is being used)
+- **humanPlayerScore** (player's score or player's team's score, depending on the current gamemode; rounded to be more humanly readable)
+- **scorePerMin** (player's score or player's team's score per minute, depending on the current gamemode; rounded to be more humanly readable)
+- **estimatedLevelInGameTime** (level in-game time prediction based on the player's current pace; updates regurarly depending on score and elapsed time)
+
+The last three variables will only update after each frag in DM, after each point earned in DOM or after each flag capture in CTF. These are not updated in AS maps.
 
 You will also have a multitude of other variables, which are being used by script. Play with the settings a bit to see if you find something interesting!
 
@@ -170,5 +180,6 @@ Also, if you wish to update the script so it can work for other versions, feel f
 
 - **liveth**, **/u/Envian**, **Driver** and **ISO2768mK** for their autosplitters (**Quake III Arena**, **UT2k4** and **Horizon Forbidden West**)
 - **Stephen Chapman** for his [Cheat Engine tutorial playlist](https://www.youtube.com/playlist?list=PLNffuWEygffbbT9Vz-Y1NXQxv2m6mrmHr)
+- **Slipyx** for [exporting UT99 UnrealScript sources](https://github.com/Slipyx/UT99)
 - **href404** and **zackan** for their help beta testing the script and their continuous support
 - the **Unreal speedrunning community**, go checkout their [Discord server](https://discord.gg/ReRRcSJ)!

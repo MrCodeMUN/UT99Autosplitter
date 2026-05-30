@@ -1,4 +1,4 @@
-// UT99 Autosplitter v0.8
+// UT99 Autosplitter v0.9
 // Made by CodeM aka MrCodeMUN
 // With inspiration from Quake III Arena, UT2k4 and Horizon Forbidden West ASL
 
@@ -18,8 +18,12 @@ state("UnrealTournament", "v469e - Release")
 	// Current state variables not used in the script, but that can be used with ASL Var Viewer
 	// localizedLevelName: 		"ITV Oblivion", "ITV oubli", etc.
 	// localizedGamemodeName: 	"Tournament DeathMatch", "Tournoi Combat à Mort", etc.
+	// airControl: 				player's air control value in percentage (%). Will be 1 if under the AntiGrav boots effect. Previously used as an anti-cheat experimental feature.
+	// jumpZ:					player's jump height value. Default is 325, or 357,5 if in Hardcore mode. Will be 975 under the AntiGrav boots effect. Previously used as an anti-cheat experimental feature.
 	string255 localizedLevelName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x390, 0x0;
 	string255 localizedGamemodeName : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x334, 0x0;
+	float airControl : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x284;
+	float jumpZ : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x27C;
 
 	// Current state variables used in the script
 	// playerPawnState: 	a combination of four bytes that can identify the "state" the player is in (waiting, walking, swimming, feigning death, game ended, spectator, etc.).
@@ -34,8 +38,6 @@ state("UnrealTournament", "v469e - Release")
 	// gameItemGoals: 		score limit in DOM and CTF.
 	// gameKillGoals: 		score limit in DM and LDM (Challenge ladder mode).
 	// gameSecretGoals: 	usually a time goal in minutes. Will always be 1 in the second part of AS maps, for some reason.
-	// airControl: 			player's air control value in percentage (%). Will be 1 if under the AntiGrav boots effect.
-	// jumpZ:				player's jump height value. Default is 325, or 357,5 if in Hardcore mode. Will be 975 under the AntiGrav boots effect.
 
 	// Alternatively, we can also check for the air control value of the AGameInfo object, which doesn't change during the match, but breaks in menus.
 	// It can be found here: 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x1354
@@ -52,8 +54,6 @@ state("UnrealTournament", "v469e - Release")
 	int gameItemGoals : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x3A0, 0x398;
 	int gameKillGoals : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x3A0, 0x39C;
 	int gameSecretGoals : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x64, 0x460, 0x3A0, 0x3A0;
-	float airControl : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x284;
-	float jumpZ : 0x00037E70, 0x44, 0x2C, 0x0, 0x30, 0x27C;
 }
 
 startup
@@ -61,10 +61,16 @@ startup
 	// --------------------------
 	// DEFINING VARIABLES
 	// --------------------------
-	// numberOfDeaths:			total deaths of the player during the run.
-	// gameStyleGlitchStatus:	simple message explaining the reason why the game style glitch is being used.
+	// numberOfDeaths:				total deaths of the player during the run.
+	// gameStyleGlitchStatus:		simple message explaining the reason if and why the game style glitch is being used.
+	// humanPlayerScore:			player's score or player's team's score, depending on the current gamemode. Rounded to be more humanly readable.
+	// scorePerMin:					player's score or player's team's score per minute, depending on the current gamemode. Rounded to be more humanly readable.
+	// estimatedLevelInGameTime:	level in-game time prediction based on the player's current pace. Updates regurarly depending on score and elapsed time.
 	vars.numberOfDeaths = 0;
 	vars.gameStyleGlitchStatus = "";
+	vars.humanPlayerScore = 0f;
+	vars.scorePerMin = 0;
+	vars.estimatedLevelInGameTime = TimeSpan.Zero;
 
 	// autoStartSettingName: 	used to get the auto-start setting name from a map file name.
 	var autoStartSettingName = new Dictionary<string, string>()
@@ -116,7 +122,7 @@ startup
 
 	// Defining first and last levels
 	var firstLevels = new List<String>(new string[] { "DM-Oblivion.unr", "DOM-Condemned.unr", "CTF-Niven.unr", "AS-Frigate.unr", "DM-Phobos.unr" });
-	var thirdOrFinalLevels = new List<String>(new string[] { "DM-Fractal.unr", "DOM-Cryptic.unr", "CTF-EternalCave.unr", "DM-Peak.unr", "DOM-MetalDream.unr", "CTF-November.unr", "CTF-Orbital.unr", "AS-Overlord.unr", "DM-HyperBlast.unr" });
+	var thresholdLevels = new List<String>(new string[] { "DM-Fractal.unr", "DOM-Cryptic.unr", "CTF-EternalCave.unr", "DM-Peak.unr", "DOM-MetalDream.unr", "CTF-November.unr", "CTF-Orbital.unr", "AS-Overlord.unr", "DM-HyperBlast.unr" });
 
 	// completedLevels: 	used to track down the levels completed by the player.
 	// elapsedTime:			in-game time, basically.
@@ -148,13 +154,14 @@ startup
 		settings.Add("auto_split_orbital", false, "Orbital Station #12", "auto_split_level");
 		settings.Add("auto_split_overlord", false, "Operation Overlord", "auto_split_level");
 		settings.Add("auto_split_hyperblast", false, "HyperBlast", "auto_split_level");
+	settings.Add("ctf_flag_split", false, "Split after every flag capture on CTF maps");
 	settings.Add("no_death_challenge", false, "No death challenge");
-	settings.Add("disable_if_game_style_glitch", false, "[EXPERIMENTAL] Disable autosplitter if the Game Style glitched is used");
+	settings.Add("lrt_instead_of_igt", false, "[EXPERIMENTAL] Set Game Time to Load Removed Time instead of the sum of all in-game elapsed times.");
 	settings.SetToolTip("auto_start_level", "If unchecked, will auto-start at the start of every level.");
 	settings.SetToolTip("auto_reset_level", "WARNING! If unchecked, will auto-reset at the start of every level.");
 	settings.SetToolTip("auto_split_level", "If unchecked, will auto-split at the end of every level.");
 	settings.SetToolTip("no_death_challenge", "If 'Reset' is checked, will auto-reset the timer on death.");
-	settings.SetToolTip("disable_if_game_style_glitch", "Disables autosplitter if game speed is not set to 100%, if air control is not set to 35% and if game style is not set to 'Hardcore'.");
+	settings.SetToolTip("lrt_instead_of_igt", "This is NOT used officilally in leaderboards. RTA is still the time you should record when submitting runs.");
 
 	// --------------------------
 	// DEFINING FUNCTIONS
@@ -221,7 +228,7 @@ startup
 
 	// Checks if the level is one of the third or last levels in the ladder mode.
 	Func<string, bool> IsThirdOrFinalLevel = (mapName) => {
-		return thirdOrFinalLevels.Contains(mapName);
+		return thresholdLevels.Contains(mapName);
 	};
 	vars.IsThirdOrFinalLevel = IsThirdOrFinalLevel;
 
@@ -240,29 +247,6 @@ startup
 		return autoSplitSettingName[mapName];
 	};
 	vars.GetAutoSplitSettingFromMapName = GetAutoSplitSettingFromMapName;
-
-	// In order for a UT99 run to be considered valid, game speed has to be set to 100%, air control should be 35% and the game style should be set to 'Hardcore'.
-	// As such, game speed should always be 1f. Player's ground speed should always be 400 ('Turbo' game style change this value to 560).
-	// AntiGrav boots can affect player's air control value, so we also check for the player's jump height value.
-	// Air control value is considered valid if:
-	// - airControl is 0.35f and jumpZ is 357.5f 	(basic air control with no boots)
-	// - airControl is 1f and jumpZ is 975f 		(air control is boosted because of the boots)
-	Func<float, float, float, float, bool> IsPlayerFollowingRules = (gameSpeed, airControl, jumpZ, playerGroundSpeed) => {
-		bool isAirControlOkay = (airControl == 0.35f && jumpZ != 975f) || (airControl == 1f && jumpZ == 975f);
-
-		if (gameSpeed != 1f || !isAirControlOkay || playerGroundSpeed != 400f) {
-			// Player is not following rules and has tempered his game settings
-			if (gameSpeed != 1f) vars.gameStyleGlitchStatus = "Game Speed isn't set to 100%!";
-			if (!isAirControlOkay) vars.gameStyleGlitchStatus = "Air Control isn't set to 35%!";
-			if (playerGroundSpeed != 400f) vars.gameStyleGlitchStatus = "Game Style isn't set to 'Hardcore'!";
-			print("[LiveSplit - UT99 Autosplitter] " + vars.gameStyleGlitchStatus);
-			return false;
-		}
-
-		vars.gameStyleGlitchStatus = "";
-		return true;
-	};
-	vars.IsPlayerFollowingRules = IsPlayerFollowingRules;
 
 	// As I couldn't find a proper way to determine the player's victory at the end of a match, we just compare the current score of the player (or their team) to the game max score.
 	Func<int, int, float, float, bool> HasPlayerWon = (gameItemGoals, gameKillGoals, playerScore, playerTeamScore) => {
@@ -310,20 +294,50 @@ init
 
 update
 {
-	// Two things are happening here:
-	// - if the game style glitch setting is enabled, we block every main functions of the script if we think the player is not following the rules
+	// Many things are happening here:
 	// - everytime the player dies, we increment vars.numberOfDeaths by 1. This can lead to an auto-reset if the proper setting is enabled
-
-	if (settings["disable_if_game_style_glitch"] && !vars.IsPlayerFollowingRules(current.gameSpeed, current.airControl, current.jumpZ, current.playerGroundSpeed)) {
-		// Player is not following rules and has tempered his game settings
-		return false;
-	}
+	// - we update the humanPlayerScore variable by rounding the playerScore or playerTeamScore value, depending on the gamemode
+	// - we update the current level prediction time
 
  	var oldStateIsDying = vars.IsInState(old.playerPawnState, vars.dyingState);
 	var currentStateIsDying = vars.IsInState(current.playerPawnState, vars.dyingState);
 
 	if (!oldStateIsDying && currentStateIsDying) {
 		vars.numberOfDeaths += 1;
+	}
+
+	// Setting humanPlayerScore, scorePerMin and estimatedLevelInGameTime
+	if (current.mapName == null || (!current.mapName.StartsWith("DM") && !current.mapName.StartsWith("DOM") && !current.mapName.StartsWith("CTF"))) {
+		vars.humanPlayerScore = "-";
+		vars.scorePerMin = "-";
+		vars.estimatedLevelInGameTime = "--:--:--";
+
+		return;
+	}
+
+	var oldScoreToCheck = old.playerTeamScore;
+	var oldGoalToCheck = old.gameItemGoals;
+	var scoreToCheck = current.playerTeamScore;
+	var goalToCheck = current.gameItemGoals;
+
+	if (current.mapName != null && current.mapName.StartsWith("DM")) {
+		oldScoreToCheck = old.playerScore;
+		oldGoalToCheck = old.gameKillGoals;
+		scoreToCheck = current.playerScore;
+		goalToCheck = current.gameKillGoals;
+	}
+
+	if (oldScoreToCheck != scoreToCheck) {
+		vars.humanPlayerScore = Math.Truncate(scoreToCheck * 10.0) / 10.0;
+		vars.scorePerMin = current.elapsedTime == 0 ? 0 : Math.Truncate((scoreToCheck / current.elapsedTime) * 60 * 10.0) / 10.0;
+		var scorePerSecond = vars.scorePerMin == 0 ? 0 : vars.scorePerMin / 60;
+
+		if (current.mapName != null && current.mapName.StartsWith("DOM")) {
+			scorePerSecond = 0.6f; // 0.6f is the best score per second possible in Domination
+		}
+
+		var remainingSeconds = scorePerSecond == 0 ? 0 : Math.Truncate((goalToCheck - scoreToCheck) / scorePerSecond);
+		vars.estimatedLevelInGameTime = TimeSpan.FromSeconds(current.elapsedTime + remainingSeconds);
 	}
 }
 
@@ -360,6 +374,15 @@ split
 	// - if no split already happened in the current level during the run
 	// - if the player is victorious
 
+	// We also split the timer after every flag capture on CTF maps if the ctf_flag_split setting is enabled.
+	if (settings["ctf_flag_split"] && current.mapName.StartsWith("CTF") && (current.playerTeamScore - old.playerTeamScore) == 1f) {
+		if (current.playerTeamScore == 3f) {
+			vars.completedLevels.Add(current.mapName);
+		}
+
+		return true;
+	}
+
 	bool shouldSplit = false;
 
 	if (settings["auto_split_level"]) {
@@ -385,7 +408,9 @@ split
 		if (current.gameItemGoals > 0 || current.gameKillGoals > 0) {
 			shouldSplit = vars.HasPlayerWon(current.gameItemGoals, current.gameKillGoals, current.playerScore, current.playerTeamScore);
 		} else if (current.gameSecretGoals == 1) {
-			shouldSplit = vars.IsBehindViewEnabled(current.playerPawnViewState); // gameSecretGoals is always 1 in the second part. If the defending team has won the match, the player will be in thrid person view.
+			// gameSecretGoals is always 1 in the second part of an Assault map.
+			// If the defending team has won the match, the player will be in third person view.
+			shouldSplit = vars.IsBehindViewEnabled(current.playerPawnViewState);
 		}
 	}
 
@@ -402,6 +427,7 @@ reset
 	// We automatically reset the timer if all of the following conditions are met:
 	// - if the auto_reset_level setting is enabled and the player is in the same level as the auto_reset_level setting
 	// - if the player is in a waiting state
+	// - if the player is not defending in an assault map
 	// We also reset the timer if the no_death_challenge setting is enabled and the player has died at least once
 
 	if (settings["no_death_challenge"] && vars.numberOfDeaths > 0) {
@@ -420,8 +446,9 @@ reset
 	}
 
 	var isPlayerWaiting = vars.IsInState(current.playerPawnState, vars.playerWaitingState);
+	var isDefendingOnAssault = current.gameSecretGoals == 1;
 
-	if (isPlayerWaiting && canAutoReset) {
+	if (isPlayerWaiting && !isDefendingOnAssault && canAutoReset) {
 		vars.ResetVarsValues();
 		return true;
 	}
@@ -432,6 +459,18 @@ reset
 onReset
 {
 	vars.ResetVarsValues();
+}
+
+isLoading
+{
+	// This is experimental and is not used officially in leaderboards.
+	if (settings["lrt_instead_of_igt"]) {
+		if (current.gameSpeed != 1f) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 gameTime
