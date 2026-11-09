@@ -221,14 +221,8 @@ startup
 	// FStateFrame: vtable, Node, Object, Code, Locals, CurrentFrame, StateNode, ProbeMask, ...
 	// These are double-checked at runtime against the engine's own reflection (Object.Outer and Object.Class properties).
 
-	// Reads an FName as a string. Names never change once created, so they are cached.
-	var nameCache = new Dictionary<int, string>();
+	// Read the current FName entry: indices may be reused after map changes.
 	Func<Process, int, string> NameOf = (proc, index) => {
-		string cached;
-		if (nameCache.TryGetValue(index, out cached)) {
-			return cached;
-		}
-
 		IntPtr namesArray = vars.namesArray;
 		int ps = proc.Is64Bit() ? 8 : 4;
 		if (index <= 0 || index >= proc.ReadValue<int>(namesArray + ps)) {
@@ -240,12 +234,23 @@ startup
 			return null;
 		}
 
-		string name = proc.ReadString(entry + (proc.Is64Bit() ? 0x10 : 0x0C), ReadStringType.UTF16, 128);
-		nameCache[index] = name;
-		return name;
+		// Read full class names (e.g. TournamentGameReplicationInfo).
+		// If the fixed-size read crosses an inaccessible page, fall back
+		// to reading UTF-16 code units until the null terminator.
+		IntPtr text = entry + (proc.Is64Bit() ? 0x10 : 0x0C);
+		string name = proc.ReadString(text, ReadStringType.UTF16, 128);
+		if (name != null) return name;
+		var chars = new List<char>();
+		for (int i = 0; i < 128; i++) {
+			byte[] pair = proc.ReadBytes(text + i * 2, 2);
+			if (pair == null || pair.Length != 2) return null;
+			ushort code = BitConverter.ToUInt16(pair, 0);
+			if (code == 0) return new string(chars.ToArray());
+			chars.Add((char)code);
+		}
+		return null;
 	};
 	vars.NameOf = NameOf;
-	vars.ClearNameCache = (Action) (() => nameCache.Clear());
 
 	// Finds a symbol exported by a loaded module by parsing its PE export table in memory.
 	Func<Process, ProcessModuleWow64Safe, string, IntPtr> FindExport = (proc, module, prefix) => {
@@ -312,7 +317,7 @@ startup
 		for (int i = 0; i < namesCount && nameIndex.Count < wanted.Count; i++) {
 			IntPtr entry = is64 ? (IntPtr) BitConverter.ToInt64(nameEntries, i * ps) : (IntPtr) BitConverter.ToInt32(nameEntries, i * ps);
 			if (entry == IntPtr.Zero) continue;
-			string name = proc.ReadString(entry + (is64 ? 0x10 : 0x0C), ReadStringType.UTF16, 128);
+			string name = NameOf(proc, i);
 			if (name != null && wanted.Contains(name) && !nameIndex.ContainsKey(name)) {
 				nameIndex[name] = i;
 			}
@@ -583,7 +588,6 @@ init
 	}
 
 	// Offsets are resolved in update, as the engine might still be starting up at this point.
-	vars.ClearNameCache();
 	vars.ready = false;
 	vars.nextResolveAttempt = DateTime.MinValue;
 
@@ -597,7 +601,7 @@ init
 	current.mapName = "";
 	current.playerGroundSpeed = 0f;
 	current.remainingTime = 0;
-	current.elapsedTime = 0;
+	current.elapsedTime = TimeSpan.FromSeconds(0);
 	current.playerScore = 0f;
 	current.playerTeamScore = 0f;
 	current.gameItemGoals = 0;
@@ -689,9 +693,16 @@ update
 	current.gameSecretGoals = w["gameSecretGoals"].Current;
 
 	// Many things are happening here:
+	// - we count the number of seconds elapsed in game
 	// - everytime the player dies, we increment vars.numberOfDeaths by 1. This can lead to an auto-reset if the proper setting is enabled
 	// - we update the humanPlayerScore variable by rounding the playerScore or playerTeamScore value, depending on the gamemode
 	// - we update the current level prediction time
+
+	// We add 1 second to the in-game timer if the map elapsed time went up by 1, or if the remaining time went down by 1.
+    if (current.elapsedTime - old.elapsedTime == 1 || old.remainingTime - current.remainingTime == 1)
+    {
+        vars.elapsedTime += TimeSpan.FromSeconds(1);
+    }
 
 	var oldStateIsDying = vars.IsInState(old.playerPawnState, vars.dyingState);
 	var currentStateIsDying = vars.IsInState(current.playerPawnState, vars.dyingState);
@@ -872,14 +883,6 @@ isLoading
 
 gameTime
 {
-    if (settings["lrt_instead_of_igt"])
-        return;
-
-    // We add 1 second to the in-game timer if the map elapsed time went up by 1, or if the remaining time went down by 1.
-    if (current.elapsedTime - old.elapsedTime == 1 || old.remainingTime - current.remainingTime == 1)
-    {
-        return vars.elapsedTime += TimeSpan.FromSeconds(1);
-    }
-
-    return vars.elapsedTime;
+    if (!settings["lrt_instead_of_igt"])
+        return vars.elapsedTime;
 }
